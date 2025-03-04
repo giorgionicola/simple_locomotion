@@ -4,11 +4,10 @@
 <!-- |    EDITING THIS FILE BY HAND IS NOT RECOMMENDED                                 | -->
 <!-- =================================================================================== -->
 <robot name="grace">
-  <!-- <link name="world"/> -->
   <link name="grace">
     <inertial>
       <origin rpy="0. 0 0." xyz="0. 0. 0."/>
-      <mass value="10"/>
+      <mass value="1.0"/>
       <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
     </inertial>
     <visual>
@@ -100,12 +99,6 @@
       </geometry>
     </collision>
   </link>
-<!--
-  <joint name="world_joint" type="floating">
-    <parent link="world"/>
-    <child link="grace"/>
-  </joint>
- -->
   <joint name="grace_LF-HAA" type="revolute">
     <origin rpy="0 0 0" xyz="-0.2 0.4 0"/>
     <parent link="grace"/>
@@ -160,13 +153,13 @@
       <inertia ixx="0." ixy="0." ixz="0." iyy="0." iyz="0." izz="0."/>
     </inertial>
     <visual>
-      <origin rpy="1.5707963267948966 0 0" xyz="0 0.065 0"/>
+      <origin rpy="1.5707963267948966 0 0" xyz="0 0.15 0"/>
       <geometry>
-        <cylinder length="0.13" radius="0.015"/>
+        <cylinder length="0.3" radius="0.015"/>
       </geometry>
     </visual>
     <collision>
-      <origin rpy="1.5707963267948966 0 0" xyz="0 0.065 0"/>
+      <origin rpy="1.5707963267948966 0 0" xyz="0 0.15 0"/>
       <geometry>
         <cylinder length="0.13" radius="0.015"/>
       </geometry>
@@ -184,12 +177,6 @@
         <sphere radius="0.02"/>
       </geometry>
     </visual>
-    <collision>
-      <origin rpy="0 0 0" xyz="0 0 0"/>
-      <geometry>
-        <sphere radius="0.02"/>
-      </geometry>
-    </collision>
   </link>
   <joint name="LF-HFE_LF-KFE" type="revolute">
     <origin rpy="0 0 0" xyz="0 0.303 0"/>
@@ -199,7 +186,7 @@
     <limit effort="4800." lower="-3.141592653589793" upper="3.141592653589793" velocity="7.4874625"/>
   </joint>
   <joint name="LF-KFE_LF-FOOT" type="fixed">
-    <origin rpy="0 0 0" xyz="0 0.17 0"/>
+    <origin rpy="0 0 0" xyz="0 0.31 0"/>
     <parent link="LF-KFE"/>
     <child link="LF-FOOT"/>
   </joint>
@@ -229,13 +216,13 @@
       <inertia ixx="0." ixy="0." ixz="0." iyy="0." iyz="0." izz="0."/>
     </inertial>
     <visual>
-      <origin rpy="1.5707963267948966 0 0" xyz="0 0.065 0"/>
+      <origin rpy="1.5707963267948966 0 0" xyz="0 0.15 0"/>
       <geometry>
-        <cylinder length="0.13" radius="0.015"/>
+        <cylinder length="0.3" radius="0.015"/>
       </geometry>
     </visual>
     <collision>
-      <origin rpy="1.5707963267948966 0 0" xyz="0 0.065 0"/>
+      <origin rpy="1.5707963267948966 0 0" xyz="0 0.15 0"/>
       <geometry>
         <cylinder length="0.13" radius="0.015"/>
       </geometry>
@@ -253,12 +240,6 @@
         <sphere radius="0.02"/>
       </geometry>
     </visual>
-    <collision>
-      <origin rpy="0 0 0" xyz="0 0 0"/>
-      <geometry>
-        <sphere radius="0.02"/>
-      </geometry>
-    </collision>
   </link>
   <joint name="LR-HFE_LR-KFE" type="revolute">
     <origin rpy="0 0 0" xyz="0 0.303 0"/>
@@ -268,7 +249,7 @@
     <limit effort="4800." lower="-3.141592653589793" upper="3.141592653589793" velocity="7.4874625"/>
   </joint>
   <joint name="LR-KFE_LR-FOOT" type="fixed">
-    <origin rpy="0 0 0" xyz="0 0.17 0"/>
+    <origin rpy="0 0 0" xyz="0 0.31 0"/>
     <parent link="LR-KFE"/>
     <child link="LR-FOOT"/>
   </joint>
@@ -298,13 +279,13 @@
       <inertia ixx="0." ixy="0." ixz="0." iyy="0." iyz="0." izz="0."/>
     </inertial>
     <visual>
-      <origin rpy="1.5707963267948966 0 0" xyz="0 0.065 0"/>
+      <origin rpy="1.5707963267948966 0 0" xyz="0 0.15 0"/>
       <geometry>
-        <cylinder length="0.13" radius="0.015"/>
+        <cylinder length="0.3" radius="0.015"/>
       </geometry>
     </visual>
     <collision>
-      <origin rpy="1.5707963267948966 0 0" xyz="0 0.065 0"/>
+      <origin rpy="1.5707963267948966 0 0" xyz="0 0.15 0"/>
       <geometry>
         <cylinder length="0.13" radius="0.015"/>
       </geometry>
@@ -331,7 +312,7 @@
     <limit effort="4800." lower="-3.141592653589793" upper="3.141592653589793" velocity="7.4874625"/>
   </joint>
   <joint name="RR-KFE_RR-FOOT" type="fixed">
-    <origin rpy="0 0 0" xyz="0 0.17 0"/>
+    <origin rpy="0 0 0" xyz="0 0.31 0"/>
     <parent link="RR-KFE"/>
     <child link="RR-FOOT"/>
   </joint>
@@ -361,13 +342,13 @@
       <inertia ixx="0." ixy="0." ixz="0." iyy="0." iyz="0." izz="0."/>
     </inertial>
     <visual>
-      <origin rpy="1.5707963267948966 0 0" xyz="0 0.065 0"/>
+      <origin rpy="1.5707963267948966 0 0" xyz="0 0.15 0"/>
       <geometry>
-        <cylinder length="0.13" radius="0.015"/>
+        <cylinder length="0.3" radius="0.015"/>
       </geometry>
     </visual>
     <collision>
-      <origin rpy="1.5707963267948966 0 0" xyz="0 0.065 0"/>
+      <origin rpy="1.5707963267948966 0 0" xyz="0 0.15 0"/>
       <geometry>
         <cylinder length="0.13" radius="0.015"/>
       </geometry>
@@ -385,12 +366,6 @@
         <sphere radius="0.02"/>
       </geometry>
     </visual>
-    <collision>
-      <origin rpy="0 0 0" xyz="0 0 0"/>
-      <geometry>
-        <sphere radius="0.02"/>
-      </geometry>
-    </collision>
   </link>
   <joint name="RF-HFE_RF-KFE" type="revolute">
     <origin rpy="0 0 0" xyz="0 0.303 0"/>
@@ -400,7 +375,7 @@
     <limit effort="4800." lower="-3.141592653589793" upper="3.141592653589793" velocity="7.4874625"/>
   </joint>
   <joint name="RF-KFE_RF-FOOT" type="fixed">
-    <origin rpy="0 0 0" xyz="0 0.17 0"/>
+    <origin rpy="0 0 0" xyz="0 0.31 0"/>
     <parent link="RF-KFE"/>
     <child link="RF-FOOT"/>
   </joint>
