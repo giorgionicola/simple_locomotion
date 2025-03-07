@@ -22,17 +22,15 @@ class SimpleSpiderGaitProblem:
                  left_back_foot_name: str,
                  body_name: str,
                  q_default: np.ndarray,
+                 timestep: float,
                  fwddyn: bool = True,
                  control_type: str = 'linear',
-                 impact_model: str = 'impulse'):
+                 impact_model: str = 'impulse', ):
 
         self.debug = True
 
-        if control_type not in [self.LINEAR_CONTROL, self.CUBIC_CONTROL]:
-            raise RuntimeError('Unknown control type')
         if impact_model not in [self.PSEUDO_IMPULSE_MODEL, self.IMPULSE_MODEL]:
             raise RuntimeError('Unknown impulse model')
-        self.control_type = control_type
         self.impact_model = impact_model
         self.rmodel = rmodel
         self.rdata = self.rmodel.createData()
@@ -51,14 +49,14 @@ class SimpleSpiderGaitProblem:
         self.n_legs = 4
         self.feet_id = [self.rf_foot_id, self.lf_foot_id, self.rb_foot_id, self.lb_foot_id]
 
-        self.center_body_id = self.rmodel.getFrameId('grace')
+        self.center_body_id = self.rmodel.getFrameId(body_name)
 
         self.q0 = q_default
         self.rmodel.defaultState = np.concatenate([q_default, np.zeros(self.rmodel.nv)])
+        self.timestep = timestep
 
-        self.mu = 7
+        self.mu = 0.8
         self.Rsurf = np.eye(3)
-        self._fwddyn = fwddyn
 
         self.state_weights_moving = np.array([0, 0, 500] +
                                              [500, 500, 500] +
@@ -84,6 +82,42 @@ class SimpleSpiderGaitProblem:
                               f'{self.lb_foot_id}': None, }
 
         self.last_com_pos = None
+
+        self.com_template_traj = None
+        self.foot_template_traj = None
+
+        self._fwddyn = fwddyn
+        if self._fwddyn:
+            self.nu = self.actuation.nu
+        else:
+            self.nu = self.state.nv + 3 * 4
+
+        if control_type not in [self.LINEAR_CONTROL, self.CUBIC_CONTROL]:
+            raise RuntimeError('Unknown control type')
+        else:
+            self.control_type = control_type
+            if self.control_type == 'linear':
+                self.control = croc.ControlParametrizationModelPolyOne(self.nu)
+            elif self.control_type == 'cubic':
+                self.control = croc.ControlParametrizationModelPolyTwoRK(self.nu, croc.RKType.three)
+
+        # self.gait_pattern = [{'swinging_feet': [self.rf_foot_id],
+        #                       'support_feet': [[self.lf_foot_id,
+        #                                         self.rb_foot_id,
+        #                                         self.lb_foot_id]]},
+        #                      {'swinging_feet': [self.lb_foot_id],
+        #                       'support_feet': [self.lf_foot_id,
+        #                                        self.rb_foot_id,
+        #                                        self.rf_foot_id]},
+        #                      {'swinging_feet': [self.rb_foot_id],
+        #                       'support_feet': [[self.lf_foot_id,
+        #                                         self.rf_foot_id,
+        #                                         self.lb_foot_id]]},
+        #                      {'swinging_feet': [self.lb_foot_id],
+        #                       'support_feet': [self.lf_foot_id,
+        #                                        self.rb_foot_id,
+        #                                        self.rf_foot_id]},
+        #                      ]
 
     def create_standing_problem(self,
                                 x0: np.ndarray,
@@ -111,14 +145,14 @@ class SimpleSpiderGaitProblem:
         problem = croc.ShootingProblem(x0, standing_models[:-1], standing_models[-1])
         return problem
 
-    def create_walking_problem(self,
-                               x0: np.ndarray,
-                               step_height: float,
-                               step_length: float,
-                               step_knots: int,
-                               support_knots: int,
-                               timestep: float,
-                               ) -> List[croc.IntegratedActionModelAbstract]:
+    def create_locomotion_models(self,
+                                 x0: np.ndarray,
+                                 step_height: float,
+                                 step_length: float,
+                                 step_knots: int,
+                                 support_knots: int,
+                                 ) -> List[croc.IntegratedActionModelAbstract]:
+
         q0 = x0[:self.rmodel.nq]
         pin.forwardKinematics(self.rmodel, self.rdata, q0)
         pin.updateFramePlacements(self.rmodel, self.rdata)
@@ -133,20 +167,23 @@ class SimpleSpiderGaitProblem:
         for id in self.feet_id:
             self.last_foot_pos[f'{id}'] = self.rdata.oMf[id].translation
 
+        self.foot_template_traj = self.compute_foot_template_trajectory(step_length=step_length,
+                                                                        step_height=step_height,
+                                                                        step_knots=step_knots)
+        self.com_template_traj = self.compute_com_template_traj(step_length=step_length,
+                                                                com_percentage=1 / 4,
+                                                                step_knots=step_knots)
 
         locomotion_models = []
 
-        locomotion_models += [self.create_support_model(timestep) for _ in range(support_knots)]
+        locomotion_models += [self.create_support_model() for _ in range(support_knots)]
         locomotion_models += self.create_single_step_model(com_pos0=self.last_com_pos,  # self.com_ref_traj[-1],
                                                            swing_feet_ids=[self.rf_foot_id],
                                                            support_feet_ids=[self.lf_foot_id,
                                                                              self.rb_foot_id,
                                                                              self.lb_foot_id],
                                                            swing_feet_pos0=[rf_foot_pos],
-                                                           step_height=step_height,
-                                                           step_length=step_length / 2,
-                                                           step_knots=step_knots,
-                                                           timestep=timestep)
+                                                           step_knots=step_knots)
 
         locomotion_models += self.create_single_step_model(com_pos0=self.last_com_pos,
                                                            swing_feet_ids=[self.lb_foot_id],
@@ -154,12 +191,9 @@ class SimpleSpiderGaitProblem:
                                                                              self.rb_foot_id,
                                                                              self.rf_foot_id],
                                                            swing_feet_pos0=[lb_foot_pos],
-                                                           step_height=step_height,
-                                                           step_length=step_length,
-                                                           step_knots=step_knots,
-                                                           timestep=timestep)
+                                                           step_knots=step_knots)
 
-        locomotion_models += [self.create_support_model(timestep) for _ in range(support_knots)]
+        locomotion_models += [self.create_support_model() for _ in range(support_knots)]
 
         locomotion_models += self.create_single_step_model(com_pos0=self.last_com_pos,
                                                            swing_feet_ids=[self.lf_foot_id],
@@ -167,10 +201,7 @@ class SimpleSpiderGaitProblem:
                                                                              self.rb_foot_id,
                                                                              self.lb_foot_id],
                                                            swing_feet_pos0=[lf_foot_pos],
-                                                           step_height=step_height,
-                                                           step_length=step_length,
-                                                           step_knots=step_knots,
-                                                           timestep=timestep)
+                                                           step_knots=step_knots)
 
         locomotion_models += self.create_single_step_model(com_pos0=self.last_com_pos,
                                                            swing_feet_ids=[self.rb_foot_id],
@@ -178,59 +209,50 @@ class SimpleSpiderGaitProblem:
                                                                              self.rf_foot_id,
                                                                              self.lb_foot_id],
                                                            swing_feet_pos0=[rb_foot_pos],
-                                                           step_height=step_height,
-                                                           step_length=step_length,
-                                                           step_knots=step_knots,
-                                                           timestep=timestep)
+                                                           step_knots=step_knots)
 
-        locomotion_models += [self.create_support_model(timestep) for _ in range(support_knots)]
-        problem = croc.ShootingProblem(x0, locomotion_models[:-1], locomotion_models[-1])
-        return problem
+        locomotion_models += [self.create_support_model() for _ in range(support_knots)]
+        return locomotion_models
 
     def create_support_model(self,
-                             timestep: float,
                              state_ref: np.ndarray = None,
                              ) -> croc.IntegratedActionModelAbstract:
-
-        if self._fwddyn:
-            nu = self.actuation.nu
-        else:
-            nu = self.state.nv + 3 * 4
 
         if state_ref is None:
             state_ref = self.rmodel.defaultState
 
-        cost_model = croc.CostModelSum(self.state, nu)
-        contact_model = croc.ContactModelMultiple(self.state, nu)
+        cost_model = croc.CostModelSum(self.state, self.nu)
+        contact_model = croc.ContactModelMultiple(self.state, self.nu)
         for id in [self.lf_foot_id, self.rf_foot_id, self.lb_foot_id, self.rb_foot_id]:
             contact_model_support_foot = croc.ContactModel3D(self.state,
                                                              id,
                                                              np.array([0.0, 0.0, 0.0]),
                                                              pin.LOCAL_WORLD_ALIGNED,
-                                                             nu,
+                                                             self.nu,
                                                              np.array([0.0, 50.0]))
             contact_model.addContact(self.rmodel.frames[id].name + "_contact", contact_model_support_foot)
 
             cone = croc.FrictionCone(self.Rsurf, self.mu, 4, False)
-            cone_residual = croc.ResidualModelContactFrictionCone(self.state, id, cone, nu, self._fwddyn)
+            cone_residual = croc.ResidualModelContactFrictionCone(self.state, id, cone, self.nu, self._fwddyn)
             cone_activation = croc.ActivationModelQuadraticBarrier(croc.ActivationBounds(cone.lb, cone.ub))
             friction_cone = croc.CostModelResidual(self.state, cone_activation, cone_residual)
             cost_model.addCost(self.rmodel.frames[id].name + "_frictionCone", friction_cone, 1e1)
 
-        state_residual = croc.ResidualModelState(self.state, state_ref, nu)
+        state_residual = croc.ResidualModelState(self.state, state_ref, self.nu)
         state_activation = croc.ActivationModelWeightedQuad(self.state_weights_standing)
         state_reg = croc.CostModelResidual(self.state, state_activation, state_residual)
 
         if self._fwddyn:
-            ctrl_reg = croc.CostModelResidual(self.state, croc.ResidualModelControl(self.state, nu))
+            ctrl_reg = croc.CostModelResidual(self.state, croc.ResidualModelControl(self.state, self.nu))
         else:
-            ctrl_reg = croc.CostModelResidual(self.state, croc.ResidualModelJointEffort(self.state, self.actuation, nu))
+            ctrl_reg = croc.CostModelResidual(self.state,
+                                              croc.ResidualModelJointEffort(self.state, self.actuation, self.nu))
         cost_model.addCost("state_reg", state_reg, 1)
         cost_model.addCost("ctrl_reg", ctrl_reg, 1)
 
         lb = np.concatenate([self.state.lb[1: self.state.nv + 1], self.state.lb[-self.state.nv:]])
         ub = np.concatenate([self.state.ub[1: self.state.nv + 1], self.state.ub[-self.state.nv:]])
-        state_bounds_residual = croc.ResidualModelState(self.state, nu)
+        state_bounds_residual = croc.ResidualModelState(self.state, self.nu)
         state_bounds_activation = croc.ActivationModelQuadraticBarrier(croc.ActivationBounds(lb, ub))
         state_bounds = croc.CostModelResidual(self.state, state_bounds_activation, state_bounds_residual)
         cost_model.addCost("state_bounds", state_bounds, 1e3)
@@ -246,18 +268,14 @@ class SimpleSpiderGaitProblem:
 
         # Vedi quadruped.py per alternative più evolute
         if self.control_type == self.LINEAR_CONTROL:
-            control = croc.ControlParametrizationModelPolyOne(nu)
-            model = croc.IntegratedActionModelEuler(dmodel, control, timestep)
+            model = croc.IntegratedActionModelEuler(dmodel, self.control, self.timestep)
         elif self.control_type == self.CUBIC_CONTROL:
-            control = croc.ControlParametrizationModelPolyTwoRK(nu, croc.RKType.three)
-            model = croc.IntegratedActionModelRK(dmodel, control, croc.RKType.three, timestep)
+            model = croc.IntegratedActionModelRK(dmodel, self.control, croc.RKType.three, self.timestep)
 
         if self.debug:
             self.com_ref_traj.append(deepcopy(self.last_com_pos))
-            self.foot_traj[f'{self.rf_foot_id}'].append(deepcopy(self.last_foot_pos[f'{self.rf_foot_id}']))
-            self.foot_traj[f'{self.lf_foot_id}'].append(deepcopy(self.last_foot_pos[f'{self.lf_foot_id}']))
-            self.foot_traj[f'{self.rb_foot_id}'].append(deepcopy(self.last_foot_pos[f'{self.rb_foot_id}']))
-            self.foot_traj[f'{self.lb_foot_id}'].append(deepcopy(self.last_foot_pos[f'{self.lb_foot_id}']))
+            for id in self.feet_id:
+                self.foot_traj[f'{id}'].append(deepcopy(self.last_foot_pos[f'{id}']))
         return model
 
     def create_single_step_model(self,
@@ -265,32 +283,31 @@ class SimpleSpiderGaitProblem:
                                  swing_feet_ids: List[int],
                                  support_feet_ids: List[int],
                                  swing_feet_pos0: List[np.ndarray],
-                                 step_height: float,
-                                 step_length: float,
-                                 step_knots: int,
-                                 timestep: float) -> List[croc.IntegratedActionModelAbstract]:
-        swing_feet_traj, com_traj = self.compute_feet_trajectories(swing_feet_pos0=swing_feet_pos0,
-                                                                   com_pos0=com_pos0,
-                                                                   step_height=step_height,
-                                                                   step_length=step_length,
-                                                                   angle=0,
-                                                                   step_knots=step_knots)
+                                 step_knots: int) -> List[croc.IntegratedActionModelAbstract]:
+
+        angle = 0
+        swing_feet_traj = [deepcopy(self.foot_template_traj) for _ in swing_feet_ids]
+        com_traj = deepcopy(self.com_template_traj)
+        rotation = R.from_euler('xyz', [0, 0, angle], degrees=False).as_matrix()
+
         step_models = []
         for knot in range(step_knots):
+            swing_feet_pos = [swing_feet_pos0[i] + rotation @ swing_feet_traj[i][knot] for i in
+                              range(len(swing_feet_ids))]
+            com_pos = com_pos0 + rotation @ self.com_template_traj[knot]
+
             step_models.append(self.create_swing_foot_model(swing_feet_ids=swing_feet_ids,
                                                             support_feet_ids=support_feet_ids,
-                                                            swing_feet_pos=[foot_traj[knot] for foot_traj in
-                                                                            swing_feet_traj],
-                                                            com_pos=com_traj[knot],
-                                                            timestep=timestep))
+                                                            swing_feet_pos=swing_feet_pos,
+                                                            com_pos=com_pos))
         if self.debug:
             self.com_ref_traj += [com for com in com_traj]
             self.last_com_pos = self.com_ref_traj[-1].copy()
             for i, id in enumerate(swing_feet_ids):
                 self.foot_traj[f'{id}'] += [deepcopy(swing_feet_traj[i][j]) for j in range(step_knots)]
-                self.last_foot_pos[f'{id}'] = self.foot_traj[f'{id}'][-1]
+                self.last_foot_pos[f'{id}'] = deepcopy(self.foot_traj[f'{id}'][-1])
             for i, id in enumerate(support_feet_ids):
-                self.foot_traj[f'{id}'] += [deepcopy(self.last_foot_pos[f'{id}']) for _ in range(len(com_traj))]
+                self.foot_traj[f'{id}'] += [deepcopy(self.last_foot_pos[f'{id}']) for _ in range(step_knots)]
 
         if self.impact_model == self.IMPULSE_MODEL:
             step_models.append(self.create_pseudo_impulse_model(support_foot_ids=support_feet_ids,
@@ -306,12 +323,35 @@ class SimpleSpiderGaitProblem:
         if self.debug:
             self.com_ref_traj.append(self.last_com_pos)
             for id in swing_feet_ids + support_feet_ids:
-                self.foot_traj[f'{id}'].append(self.last_foot_pos[f'{id}'])
-
-        # for p in range(len(swing_feet_pos0)):
-        #     swing_feet_pos0[p][0] += step_length
+                self.foot_traj[f'{id}'].append(deepcopy(self.last_foot_pos[f'{id}']))
 
         return step_models
+
+    def compute_foot_template_trajectory(self,
+                                         step_height: float,
+                                         step_length: float,
+                                         step_knots: int):
+
+        swing_feet_traj = [np.zeros(3) for _ in range(step_knots)]
+        length_incr = step_length / step_knots
+
+        if step_knots % 2 == 0:
+            height_incr = step_height / (step_knots // 2 + 0.5)
+            for knot in range(step_knots // 2):
+                swing_feet_traj[knot] = np.array([length_incr * knot, 0, height_incr * knot])
+                swing_feet_traj[-(knot + 1)] = np.array([step_length - (length_incr * knot), 0, height_incr * knot])
+        else:
+            height_incr = step_height / (step_knots // 2)
+            for knot in range(step_knots // 2):
+                swing_feet_traj[knot] = np.array([length_incr * knot, 0, height_incr * knot])
+                swing_feet_traj[-(knot + 1)] = np.array([step_length - (length_incr * knot), 0, height_incr * knot])
+            swing_feet_traj[step_knots // 2 + 1] = np.array([length_incr * (knot + 1), 0, height_incr * (knot + 1)])
+
+        return swing_feet_traj
+
+    def compute_com_template_traj(self, step_knots: int, step_length: float, com_percentage: float):
+        length_incr = step_length / step_knots
+        return np.array([[length_incr * knot * com_percentage, 0, 0] for knot in range(step_knots)])
 
     def compute_feet_trajectories(self,
                                   swing_feet_pos0: List[np.ndarray],
@@ -355,52 +395,48 @@ class SimpleSpiderGaitProblem:
                                 support_feet_ids: List[int],
                                 swing_feet_pos: List[np.ndarray],
                                 com_pos: np.ndarray,
-                                timestep: float,
                                 ):
-        if self._fwddyn:
-            nu = self.actuation.nu
-        else:
-            nu = self.state.nv + 3 * len(support_feet_ids)
 
-        cost_model = croc.CostModelSum(self.state, nu)
-        contact_model = croc.ContactModelMultiple(self.state, nu)
+        cost_model = croc.CostModelSum(self.state, self.nu)
+        contact_model = croc.ContactModelMultiple(self.state, self.nu)
         for id in support_feet_ids:
             contact_model_support_foot = croc.ContactModel3D(self.state,
                                                              id,
                                                              np.array([0.0, 0.0, 0.0]),
                                                              pin.LOCAL_WORLD_ALIGNED,
-                                                             nu,
+                                                             self.nu,
                                                              np.array([0.0, 50.0]))
             contact_model.addContact(self.rmodel.frames[id].name + "_contact", contact_model_support_foot)
 
             cone = croc.FrictionCone(self.Rsurf, self.mu, 4, False)
-            cone_residual = croc.ResidualModelContactFrictionCone(self.state, id, cone, nu, self._fwddyn)
+            cone_residual = croc.ResidualModelContactFrictionCone(self.state, id, cone, self.nu, self._fwddyn)
             cone_activation = croc.ActivationModelQuadraticBarrier(croc.ActivationBounds(cone.lb, cone.ub))
             friction_cone = croc.CostModelResidual(self.state, cone_activation, cone_residual)
             cost_model.addCost(self.rmodel.frames[id].name + "_frictionCone", friction_cone, 1e1)
 
         for id, foot_trajectory in zip(swing_feet_ids, swing_feet_pos):
-            frame_translation_residual = croc.ResidualModelFrameTranslation(self.state, id, foot_trajectory, nu)
+            frame_translation_residual = croc.ResidualModelFrameTranslation(self.state, id, foot_trajectory, self.nu)
             foot_track = croc.CostModelResidual(self.state, frame_translation_residual)
             cost_model.addCost(self.rmodel.frames[id].name + "_footTrack", foot_track, 1e6)
 
-        com_track_residual = croc.ResidualModelCoMPosition(self.state, com_pos, nu)
+        com_track_residual = croc.ResidualModelCoMPosition(self.state, com_pos, self.nu)
         com_track = croc.CostModelResidual(self.state, com_track_residual)
         cost_model.addCost("comTrack", com_track, 1e6)
 
-        state_residual = croc.ResidualModelState(self.state, self.rmodel.defaultState, nu)
+        state_residual = croc.ResidualModelState(self.state, self.rmodel.defaultState, self.nu)
         state_activation = croc.ActivationModelWeightedQuad(self.state_weights_moving)
         state_reg = croc.CostModelResidual(self.state, state_activation, state_residual)
         if self._fwddyn:
-            ctrl_reg = croc.CostModelResidual(self.state, croc.ResidualModelControl(self.state, nu))
+            ctrl_reg = croc.CostModelResidual(self.state, croc.ResidualModelControl(self.state, self.nu))
         else:
-            ctrl_reg = croc.CostModelResidual(self.state, croc.ResidualModelJointEffort(self.state, self.actuation, nu))
+            ctrl_reg = croc.CostModelResidual(self.state,
+                                              croc.ResidualModelJointEffort(self.state, self.actuation, self.nu))
         cost_model.addCost("state_reg", state_reg, 1e1)
         cost_model.addCost("ctrl_reg", ctrl_reg, 1e-1)
 
         lb = np.concatenate([self.state.lb[1: self.state.nv + 1], self.state.lb[-self.state.nv:]])
         ub = np.concatenate([self.state.ub[1: self.state.nv + 1], self.state.ub[-self.state.nv:]])
-        state_bounds_residual = croc.ResidualModelState(self.state, nu)
+        state_bounds_residual = croc.ResidualModelState(self.state, self.nu)
         state_bounds_activation = croc.ActivationModelQuadraticBarrier(croc.ActivationBounds(lb, ub))
         state_bounds = croc.CostModelResidual(self.state, state_bounds_activation, state_bounds_residual)
         cost_model.addCost("state_bounds", state_bounds, 1e3)
@@ -416,15 +452,24 @@ class SimpleSpiderGaitProblem:
 
         # Vedi quadruped.py per alternative più evolute
         if self.control_type == 'linear':
-            control = croc.ControlParametrizationModelPolyOne(nu)
-            model = croc.IntegratedActionModelEuler(dmodel, control, timestep)
+            model = croc.IntegratedActionModelEuler(dmodel, self.control, self.timestep)
         elif self.control_type == 'cubic':
-            control = croc.ControlParametrizationModelPolyTwoRK(nu, croc.RKType.three)
-            model = croc.IntegratedActionModelRK(dmodel, control, croc.RKType.three, timestep)
+            model = croc.IntegratedActionModelRK(dmodel, self.control, croc.RKType.three, self.timestep)
         else:
             raise RuntimeError('Unknown control type')
 
         return model
+
+    def update_swing_foot_model(self,
+                                swing_foot_model: croc.CostModelSum,
+                                ):
+
+        pass
+
+    def update_support_model(self,
+                             support_model):
+
+        pass
 
     def create_impulse_model(self,
                              support_foot_ids: List[int],

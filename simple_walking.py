@@ -1,3 +1,5 @@
+from collections import deque
+
 import crocoddyl as croc
 import numpy as np
 from numpy import pi
@@ -26,26 +28,28 @@ q_ref = np.array([
 
 x0 = np.concatenate([q_ref, np.zeros(robot.nv)])
 
-problem = SimpleSpiderGaitProblem(rmodel=robot.model,
-                                  right_front_foot_name='RF-FOOT',
-                                  left_front_foot_name='LF-FOOT',
-                                  right_back_foot_name='RR-FOOT',
-                                  left_back_foot_name='LR-FOOT',
-                                  body_name='grace',
-                                  q_default=q_ref,
-                                  control_type='cubic',
-                                  impact_model='impulse'
-                                  )
+gait_problem = SimpleSpiderGaitProblem(rmodel=robot.model,
+                                       right_front_foot_name='RF-FOOT',
+                                       left_front_foot_name='LF-FOOT',
+                                       right_back_foot_name='RR-FOOT',
+                                       left_back_foot_name='LR-FOOT',
+                                       body_name='grace',
+                                       q_default=q_ref,
+                                       control_type='cubic',
+                                       impact_model='impulse',
+                                       timestep=0.02
+                                       )
 
 solvers = []
 for i in range(1):
-    solvers.append(croc.SolverFDDP(problem.create_walking_problem(x0=x0,
-                                                                  step_height=0.1,
-                                                                  step_length=0.25,
-                                                                  step_knots=20,
-                                                                  support_knots=2,
-                                                                  timestep=0.02,))
-                   )
+    locomotion_models = gait_problem.create_locomotion_models(x0=x0,
+                                                              step_height=0.1,
+                                                              step_length=0.25,
+                                                              step_knots=20,
+                                                              support_knots=2, )
+    problem = croc.ShootingProblem(x0, locomotion_models[:-1], locomotion_models[-1])
+
+    solvers.append(croc.SolverFDDP(problem))
     solvers[i].setCallbacks([croc.CallbackVerbose()])
 
     xs = [x0] * (solvers[i].problem.T + 1)
@@ -54,9 +58,7 @@ for i in range(1):
 
     x0 = solvers[i].xs[-1]
 
-
-
-problem.plot_solution(solvers)
+gait_problem.plot_solution(solvers)
 
 meshcat_display = croc.MeshcatDisplay(robot)
 while True:
