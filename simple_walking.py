@@ -8,16 +8,16 @@ import time
 from copy import deepcopy
 from spider import SimpleSpiderGaitProblem
 
-robot = pin.RobotWrapper.BuildFromURDF("simple_grace.urdf",
+robot = pin.RobotWrapper.BuildFromURDF("model/simple_grace.urdf",
                                        root_joint=pin.JointModelFreeFlyer())
 
 q_ref = np.array([
     0, 0, 0,
     0, 0, 0, 1,
-    -pi / 4, -pi/4, pi / 2,
-    pi / 4, -pi/4, pi / 2,
-    pi / 4, -pi/4, pi / 2,
-    -pi / 4, -pi/4, pi / 2,
+    -pi / 4, 0, pi / 2,
+    pi / 4, 0, pi / 2,
+    pi / 4, 0, pi / 2,
+    -pi / 4, 0, pi / 2,
     # 0, -pi/4, pi / 2,
     # 0 , -pi/4, pi / 2,
     # 0, -pi/4, pi / 2,
@@ -33,11 +33,12 @@ problem = SimpleSpiderGaitProblem(rmodel=robot.model,
                                   left_back_foot_name='LR-FOOT',
                                   body_name='grace',
                                   q_default=q_ref,
-                                  control_type='linear'
+                                  control_type='cubic',
+                                  impact_model='impulse'
                                   )
 
 solvers = []
-for i in range(2):
+for i in range(1):
     solvers.append(croc.SolverFDDP(problem.create_walking_problem(x0=x0,
                                                                   step_height=0.1,
                                                                   step_length=0.25,
@@ -49,20 +50,11 @@ for i in range(2):
 
     xs = [x0] * (solvers[i].problem.T + 1)
     us = solvers[i].problem.quasiStatic([x0] * solvers[i].problem.T)
-    solvers[i].solve(xs, us, 100, True)
+    solvers[i].solve(xs, us, 100, False)
 
     x0 = solvers[i].xs[-1]
 
-solvers.append(croc.SolverFDDP(problem.create_standing_problem(x0=x0,
-                                                               q_ref=q_ref,
-                                                               timestep=0.02,
-                                                               support_steps=2)))
-solvers[-1].setCallbacks([croc.CallbackVerbose()])
-xs = [x0] * (solvers[-1].problem.T + 1)
-us = solvers[-1].problem.quasiStatic([x0] * solvers[-1].problem.T)
-solvers[-1].solve(xs, us, 100, False)
 
-x0 = solvers[-1].xs[-1]
 
 problem.plot_solution(solvers)
 

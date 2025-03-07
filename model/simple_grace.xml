@@ -1,0 +1,149 @@
+<mujoco model="grace">
+    <asset>
+        <texture type="skybox" builtin="gradient" rgb1="0.3 0.5 0.7" rgb2="0 0 0" width="512" height="3072"/>
+        <texture type="2d" name="groundplane" builtin="checker" mark="edge" rgb1="0.2 0.3 0.4" rgb2="0.1 0.2 0.3"
+                 markrgb="0.8 0.8 0.8" width="300" height="300"/>
+        <material name="groundplane" texture="groundplane" texuniform="true" texrepeat="5 5" reflectance="0.2"/>
+    </asset>
+
+    <extension>
+        <plugin plugin="mujoco.pid">
+            <instance name="pid_shoulder_1">
+                <config key="kp" value="40.0"/>
+                <config key="ki" value="40"/>
+                <config key="kd" value="4"/>
+                <config key="slewmax" value="3"/>
+                <config key="imax" value="10"/>
+            </instance>
+
+            <instance name="pid_shoulder_2">
+                <config key="kp" value="40.0"/>
+                <config key="ki" value="40"/>
+                <config key="kd" value="4"/>
+                <config key="slewmax" value="3"/>
+                <config key="imax" value="10"/>
+            </instance>
+
+            <instance name="pid_elbow">
+                <config key="kp" value="100.0"/>
+                <config key="ki" value="40"/>
+                <config key="kd" value="4"/>
+                <config key="slewmax" value="3"/>
+                <config key="imax" value="10"/>
+            </instance>
+
+        </plugin>
+    </extension>
+
+    <worldbody>
+        <light pos="0 0 1.5" dir="0 0 -1" directional="true"/>
+        <geom name="floor" pos="0 0 -0.2" size="0 0 0.05" type="plane" material="groundplane" friction="0.8 0 0"/>
+
+        <body name="grace">
+            <freejoint/>
+            <geom type="box" size="0.2 0.4 0.1" pos="0 0 0" mass="10"/>
+            <body name="LF-HAA" pos="-0.2 0.4 0">
+                <geom size="0.04 0.05" pos="-0.05 0 0" euler="0 90 0" type="cylinder" mass="1.27737"/>
+                <joint name="grace_LF-HAA" pos="0 0 0" axis="0 0 1" range="-90 0"/>
+                <body name="LF-HFE" pos="-0.1 0 0" euler="90 0 90 ">
+                    <geom size="0.025 0.1515" pos="0 0.1515 0" euler="90 0 0" type="cylinder" mass="0.400571"/>
+                    <joint name="LF-HAA_LF-HFE" pos="0 0 0" axis="0 0 1" range="-90 90"/>
+                    <body name="LF-KFE" pos="0 0.303 0">
+                        <geom size="0.015 0.15" pos="0 0.15 0" quat="0.707107 0.707107 0 0" type="cylinder"
+                              mass="0.768043"/>
+                        <joint name="LF-HFE_LF-KFE" pos="0 0 0" axis="0 0 1" range="-90 90"/>
+                        <body name="LF-FOOT" pos="0 0.32 0">
+                            <geom type="sphere" size="0.02 0" pos="0 0 0" euler="0 0 0" mass="0.1"/>
+                        </body>
+                    </body>
+                </body>
+            </body>
+
+            <body name="LR-HAA" pos="0.2 0.4 0" euler="0 0 180">
+                <geom size="0.04 0.05" pos="-0.05 0 0" euler="0 90 0" type="cylinder" mass="1.27737"/>
+                <joint name="grace_LR-HAA" pos="0 0 0" axis="0 0 1" range="-90 90"/>
+                <body name="LR-HFE" pos="-0.1 0 0" euler="90 0 90 ">
+                    <geom size="0.025 0.1515" pos="0 0.1515 0" euler="90 0 0" type="cylinder" mass="0.400571"/>
+                    <joint name="LR-HAA_LR-HFE" pos="0 0 0" axis="0 0 1" range="-90 90"/>
+                    <body name="LR-KFE" pos="0 0.303 0">
+                        <geom size="0.015 0.15" pos="0 0.15 0" quat="0.707107 0.707107 0 0" type="cylinder"
+                              mass="0.768043"/>
+                        <joint name="LR-HFE_LR-KFE" pos="0 0 0" axis="0 0 1" range="-90 90"/>
+                        <body name="LR-FOOT" pos="0 0.32 0">
+                            <geom type="sphere" size="0.02 0" pos="0 0 0" euler="0 0 0" mass="0.1"/>
+                        </body>
+                    </body>
+                </body>
+            </body>
+
+            <body name="RF-HAA" pos="-0.2 -0.4 0">
+                <geom size="0.04 0.05" pos="-0.05 0 0" euler="0 90 0" type="cylinder" mass="1.27737"/>
+                <joint name="grace_RF-HAA" pos="0 0 0" axis="0 0 1" range="0 90"/>
+                <body name="RF-HFE" pos="-0.1 0 0" euler="90 0 90 ">
+                    <geom size="0.025 0.1515" pos="0 0.1515 0" euler="90 0 0" type="cylinder" mass="0.400571"/>
+                    <joint name="RF-HAA_RF-HFE" pos="0 0 0" axis="0 0 1" range="-90 90"/>
+                    <body name="RF-KFE" pos="0 0.303 0">
+                        <geom size="0.015 0.15" pos="0 0.15 0" quat="0.707107 0.707107 0 0" type="cylinder"
+                              mass="0.768043"/>
+                        <joint name="RF-HFE_RF-KFE" pos="0 0 0" axis="0 0 1" range="-90 90"/>
+                        <body name="RF-FOOT" pos="0 0.32 0">
+                            <geom type="sphere" size="0.02 0" pos="0 0 0" euler="0 0 0" mass="0.1" friction="0.2 0 0"/>
+                        </body>
+                    </body>
+                </body>
+            </body>
+
+            <body name="RR-HAA" pos="0.2 -0.4 0" euler="0 0 180">
+                <geom size="0.04 0.05" pos="-0.05 0 0" euler="0 90 0" type="cylinder" mass="1.27737"/>
+                <joint name="grace_RR-HAA" pos="0 0 0" axis="0 0 1" range="-90 90"/>
+                <body name="RR-HFE" pos="-0.1 0 0" euler="90 0 90 ">
+                    <geom size="0.025 0.1515" pos="0 0.1515 0" euler="90 0 0" type="cylinder" mass="0.400571"/>
+                    <joint name="RR-HAA_RR-HFE" pos="0 0 0" axis="0 0 1" range="-90 90"/>
+                    <body name="RR-KFE" pos="0 0.303 0">
+                        <geom size="0.015 0.15" pos="0 0.15 0" quat="0.707107 0.707107 0 0" type="cylinder"
+                              mass="0.768043"/>
+                        <joint name="RR-HFE_RR-KFE" pos="0 0 0" axis="0 0 1" range="-90 90"/>
+                        <body name="RR-FOOT" pos="0 0.32 0">
+                            <geom type="sphere" size="0.02 0" pos="0 0 0" euler="0 0 0" mass="0.1" friction="0.8 0 0"/>
+                        </body>
+                    </body>
+                </body>
+            </body>
+        </body>
+    </worldbody>
+
+    <actuator>
+        <plugin joint="grace_LF-HAA" plugin="mujoco.pid" instance="pid_shoulder_1" actdim="2"/>
+        <plugin joint="LF-HAA_LF-HFE" plugin="mujoco.pid" instance="pid_shoulder_2" actdim="2"/>
+        <plugin joint="LF-HFE_LF-KFE" plugin="mujoco.pid" instance="pid_elbow" actdim="2"/>
+
+        <plugin joint="grace_LR-HAA" plugin="mujoco.pid" instance="pid_shoulder_1" actdim="2"/>
+        <plugin joint="LR-HAA_LR-HFE" plugin="mujoco.pid" instance="pid_shoulder_2" actdim="2"/>
+        <plugin joint="LR-HFE_LR-KFE" plugin="mujoco.pid" instance="pid_elbow" actdim="2"/>
+
+        <plugin joint="grace_RF-HAA" plugin="mujoco.pid" instance="pid_shoulder_1" actdim="2"/>
+        <plugin joint="RF-HAA_RF-HFE" plugin="mujoco.pid" instance="pid_shoulder_2" actdim="2"/>
+        <plugin joint="RF-HFE_RF-KFE" plugin="mujoco.pid" instance="pid_elbow" actdim="2"/>
+
+        <plugin joint="grace_RR-HAA" plugin="mujoco.pid" instance="pid_shoulder_1" actdim="2"/>
+        <plugin joint="RR-HAA_RR-HFE" plugin="mujoco.pid" instance="pid_shoulder_2" actdim="2"/>
+        <plugin joint="RR-HFE_RR-KFE" plugin="mujoco.pid" instance="pid_elbow" actdim="2"/>
+
+        <!--        <position ctrllimited="true" kp="10" kv="1" ctrlrange="-1.57 0" joint="grace_LF-HAA"/>-->
+        <!--        <position ctrllimited="true" kp="10" kv="1" ctrlrange="-3.14 3.14" joint="LF-HAA_LF-HFE"/>-->
+        <!--        <position ctrllimited="true" kp="10" kv="1" ctrlrange="-3.14 3.14" joint="LF-HFE_LF-KFE"/>-->
+
+        <!--        <position ctrllimited="true" kp="10" kv="1" ctrlrange="-1.57 1.57" joint="grace_LR-HAA"/>-->
+        <!--        <position ctrllimited="true" kp="10" kv="1" ctrlrange="-3.14 3.14" joint="LR-HAA_LR-HFE"/>-->
+        <!--        <position ctrllimited="true" kp="10" kv="1" ctrlrange="-3.14 3.14" joint="LR-HFE_LR-KFE"/>-->
+
+        <!--        <position ctrllimited="true" kp="10" kv="1" ctrlrange="0 1.57" joint="grace_RF-HAA"/>-->
+        <!--        <position ctrllimited="true" kp="10" kv="1" ctrlrange="-3.14 3.14" joint="RF-HAA_RF-HFE"/>-->
+        <!--        <position ctrllimited="true" kp="10" kv="1" ctrlrange="-3.14 3.14" joint="RF-HFE_RF-KFE"/>-->
+
+        <!--        <position ctrllimited="true" kp="10" kv="1" ctrlrange="-1.57 1.57" joint="grace_RR-HAA"/>-->
+        <!--        <position ctrllimited="true" kp="10" kv="1" ctrlrange="-3.14 3.14" joint="RR-HAA_RR-HFE"/>-->
+        <!--        <position ctrllimited="true" kp="10" kv="1" ctrlrange="-3.14 3.14" joint="RR-HFE_RR-KFE"/>-->
+
+    </actuator>
+</mujoco>
