@@ -1,0 +1,87 @@
+<mujoco>
+    <extension>
+<!--        <plugin plugin="mujoco.pid">-->
+<!--            <instance name="pid_shoulder_1">-->
+<!--                <config key="kp" value="1000.0"/>-->
+<!--                <config key="ki" value="100"/>-->
+<!--                <config key="kd" value="20"/>-->
+<!--                &lt;!&ndash;                                <config key="slewmax" value="10"/>&ndash;&gt;-->
+<!--                &lt;!&ndash;                                <config key="imax" value="100"/>&ndash;&gt;-->
+<!--            </instance>-->
+
+<!--            <instance name="pid_shoulder_2">-->
+<!--                <config key="kp" value="1000.0"/>-->
+<!--                <config key="ki" value="100"/>-->
+<!--                <config key="kd" value="20"/>-->
+<!--                &lt;!&ndash;                                <config key="slewmax" value="10"/>&ndash;&gt;-->
+<!--                &lt;!&ndash;                                <config key="imax" value="100"/>&ndash;&gt;-->
+<!--            </instance>-->
+
+<!--            <instance name="pid_elbow">-->
+<!--                <config key="kp" value="1000.0"/>-->
+<!--                <config key="ki" value="100"/>-->
+<!--                <config key="kd" value="10"/>-->
+<!--                &lt;!&ndash;                                <config key="slewmax" value="10"/>&ndash;&gt;-->
+<!--                &lt;!&ndash;                                <config key="imax" value="100"/>&ndash;&gt;-->
+<!--            </instance>-->
+
+<!--        </plugin>-->
+    </extension>
+
+    <worldbody>
+        <light pos="0 0 1.5" dir="0 0 -1" directional="true"/>
+
+        <body name="dummy_link_1">
+            <inertial mass="100" diaginertia="10 10 10" pos="0 0 0"/>
+            <joint name="slider1" pos="0 0 0" axis="1 0 0" type="slide" range="-0.5 0.5"/>
+            <body name="dummy_link_2">
+                <inertial mass="100" diaginertia="10 10 10" pos="0 0 0"/>
+                <joint name="slider2" pos="0 0 0" axis="0 1 0" type="slide" range="-0.5 0.5"/>
+                <body name="dummy_link_3">
+                    <inertial mass="100" diaginertia="10 10 10" pos="0 0 0"/>
+                    <joint name="slider3" pos="0 0 0" axis="0 0 1" type="slide" range="-0.5 0.5"/>
+                    <body name="LF-HAA">
+                        <inertial mass="1.27737" diaginertia="1 1 1" pos="0 0 0"/>
+                        <geom size="0.04 0.05" pos="-0.05 0 0" euler="0 90 0" type="cylinder"/>
+                        <joint name="grace_LF-HAA" pos="0 0 0" axis="0 0 1" range="-90 90"/>
+                        <body name="LF-HFE" pos="-0.1 0 0" euler="90 0 90">
+                            <inertial mass="0.400571" diaginertia="1 1 1" pos="0 0 0"/>
+                            <geom size="0.025 0.15" pos="0 0.15 0" euler="90 0 0" type="cylinder"/>
+                            <joint name="LF-HAA_LF-HFE" pos="0 0 0" axis="0 0 1" range="-180 180"/>
+                            <body name="LF-KFE" pos="0 0.30 0">
+                                <inertial mass="0.768043" diaginertia="1 1 1" pos="0 0 0"/>
+                                <geom size="0.015 0.15" pos="0 0.15 0" quat="0.707107 0.707107 0 0" type="cylinder"/>
+                                <joint name="LF-HFE_LF-KFE" pos="0 0 0" axis="0 0 1" range="-180 180"/>
+                                <body name="LF-FOOT" pos="0 0.32 0">
+                                    <inertial mass="0.1" diaginertia="1 1 1" pos="0 0 0"/>
+                                    <geom type="sphere" size="0.02 0" pos="0 0 0" euler="0 0 0" priority="1"
+                                          solimp="1 1 0.02" condim="6" friction="5 0.02 0.01"/>
+                                </body>
+                            </body>
+                        </body>
+                    </body>
+                </body>
+            </body>
+        </body>
+    </worldbody>
+
+    <actuator>
+
+        <position name="act_slider1" joint="slider1" kp="50000" dampratio="1"/>
+        <position name="act_slider2" joint="slider2" kp="50000" dampratio="1"/>
+        <position name="act_slider3" joint="slider3" kp="50000" dampratio="1"/>
+
+<!--        <plugin joint="grace_LF-HAA" plugin="mujoco.pid" instance="pid_shoulder_1" actdim="1"/>-->
+<!--        <plugin joint="LF-HAA_LF-HFE" plugin="mujoco.pid" instance="pid_shoulder_2" actdim="1"/>-->
+<!--        <plugin joint="LF-HFE_LF-KFE" plugin="mujoco.pid" instance="pid_elbow" actdim="1"/>-->
+
+
+        <position name="pos_grace_LF-HAA" joint="grace_LF-HAA"  kp="1000" dampratio="0.5"/>
+        <position name="pos_LF-HAA_LF-HFE" joint="LF-HAA_LF-HFE" kp="1000" dampratio="0.5"/>
+        <position name="pos_LF-HFE_LF-KFE" joint="LF-HFE_LF-KFE" kp="1000" dampratio="0.5"/>
+
+        <velocity name="vel_grace_LF-HAA" joint="grace_LF-HAA"  kv="100" />
+        <velocity name="vel_LF-HAA_LF-HFE" joint="LF-HAA_LF-HFE" kv="100" />
+        <velocity name="vel_LF-HFE_LF-KFE" joint="LF-HFE_LF-KFE" kv="100" />
+    </actuator>
+</mujoco>
